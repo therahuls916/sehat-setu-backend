@@ -5,7 +5,7 @@ const {
   updateAppointmentStatus,
   createPrescription, // <-- Import new function
 } = require('../controllers/doctorController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/firebaseAuthMiddleware');
 
 // --- Appointment Routes ---
 router.route('/appointments').get(protect, getDoctorAppointments);
