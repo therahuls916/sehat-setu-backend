@@ -1,17 +1,23 @@
+// routes/doctorRoutes.js
 const express = require('express');
 const router = express.Router();
+
 const {
   getDoctorAppointments,
   updateAppointmentStatus,
-  createPrescription, // <-- Import new function
+  createPrescription,
 } = require('../controllers/doctorController');
-const { protect } = require('../middleware/firebaseAuthMiddleware');
+
+// --- THE FIX IS HERE ---
+// Correctly import 'protectFirebase' instead of 'protect'
+const { protectFirebase } = require('../middleware/firebaseAuthMiddleware');
 
 // --- Appointment Routes ---
-router.route('/appointments').get(protect, getDoctorAppointments);
-router.route('/appointments/:id').put(protect, updateAppointmentStatus);
+// Use the correctly imported 'protectFirebase' middleware
+router.route('/appointments').get(protectFirebase, getDoctorAppointments);
+router.route('/appointments/:id').put(protectFirebase, updateAppointmentStatus);
 
 // --- Prescription Route ---
-router.route('/prescriptions').post(protect, createPrescription);
+router.route('/prescriptions').post(protectFirebase, createPrescription);
 
 module.exports = router;
