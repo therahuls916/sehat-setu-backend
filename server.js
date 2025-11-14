@@ -1,13 +1,16 @@
+// server.js
+
 const express = require('express');
 const dotenv = require('dotenv');
 const admin = require('firebase-admin');
 const connectDB = require('./config/db');
+const cors = require('cors'); // <-- 1. IMPORT CORS HERE
 
 // --- Route Imports ---
 const authRoutes = require('./routes/authRoutes');
 const patientRoutes = require('./routes/patientRoutes');
 const doctorRoutes = require('./routes/doctorRoutes');
-const pharmacyRoutes = require('./routes/pharmacyRoutes'); // <-- IMPORT PHARMACY ROUTES
+const pharmacyRoutes = require('./routes/pharmacyRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -23,6 +26,17 @@ connectDB();
 
 const app = express();
 
+// --- 2. ADD CORS MIDDLEWARE CONFIGURATION HERE ---
+// This must come BEFORE your routes
+const corsOptions = {
+  origin: 'http://localhost:3000', // Your frontend's origin
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  credentials: true,
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
+
+
 // Middleware to accept JSON
 app.use(express.json());
 
@@ -30,7 +44,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/patient', patientRoutes);
 app.use('/api/doctor', doctorRoutes);
-app.use('/api/pharmacy', pharmacyRoutes); // <-- USE PHARMACY ROUTES
+app.use('/api/pharmacy', pharmacyRoutes);
 
 // A simple test route
 app.get('/', (req, res) => {
