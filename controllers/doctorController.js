@@ -6,13 +6,17 @@ const Prescription = require('../models/prescriptionModel'); // <-- Import the n
  * @route   GET /api/doctor/appointments
  * @access  Private (Doctor only)
  */
+
 const getDoctorAppointments = async (req, res) => {
-  // ... (existing code, no changes)
+  
   try {
-    const appointments = await Appointment.find({ doctorId: req.user._id });
-    res.status(200).json(appointments);
+    const appointments = await Appointment.find({ doctor: req.user._id })
+      .populate('patient', 'name'); // <-- ADD THIS LINE
+
+    res.json(appointments);
   } catch (error) {
-    res.status(500).json({ message: 'Server Error: ' + error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Server error fetching appointments' });
   }
 };
 
