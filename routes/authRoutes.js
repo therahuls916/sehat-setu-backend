@@ -1,9 +1,14 @@
+// routes/authRoutes.js
 const express = require('express');
 const router = express.Router();
-const { registerUser } = require('../controllers/authController');
+const { registerUser, loginUser } = require('../controllers/authController'); // Import both functions
 
-// Define the route for user registration
-// This corresponds to the URL: POST http://localhost:5000/api/auth/register
+// @desc    Register a new user
+// @route   POST /api/auth/register
 router.post('/register', registerUser);
+
+// @desc    Authenticate a user (login)
+// @route   POST /api/auth/login
+router.post('/login', loginUser);
 
 module.exports = router;
