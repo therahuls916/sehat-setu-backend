@@ -38,6 +38,9 @@ const prescriptionSchema = new mongoose.Schema(
       enum: ['pending', 'ready_for_pickup', 'dispensed'],
       default: 'pending',
     },
+    pharmacyNotes: {
+      type: String, // To store remarks from the pharmacy
+    },
   },
   {
     timestamps: true,

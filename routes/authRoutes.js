@@ -1,14 +1,16 @@
-// routes/authRoutes.js
+// backend/routes/authRoutes.js
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser } = require('../controllers/authController'); // Import both functions
+const { syncUser } = require('../controllers/authController');
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
-router.post('/register', registerUser);
+// 1. Import our new, more flexible middleware
+const { verifyFirebaseToken } = require('../middleware/verifyFirebaseToken');
 
-// @desc    Authenticate a user (login)
-// @route   POST /api/auth/login
-router.post('/login', loginUser);
+// 2. Update the /sync route to accept both GET and POST, and use the new middleware
+router.route('/sync')
+  .get(verifyFirebaseToken, syncUser)
+  .post(verifyFirebaseToken, syncUser);
+
+// Remove any other old routes if they are not needed.
 
 module.exports = router;

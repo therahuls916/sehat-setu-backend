@@ -29,6 +29,29 @@ const userSchema = new mongoose.Schema(
     address: {
       type: String,
     },
+
+    // --- NEW FIELDS FOR PATIENT APP ---
+    // For Doctor online/offline status
+    status: {
+      type: String,
+      enum: ['online', 'offline'],
+      default: 'offline',
+    },
+    // For Firebase Cloud Messaging (Push Notifications)
+    fcmToken: {
+      type: String,
+    },
+    // For extended patient profile
+    age: {
+      type: Number,
+    },
+    gender: {
+      type: String,
+    },
+    bloodGroup: {
+      type: String,
+    },
+    
     // --- Role-specific fields ---
     specialization: {
       type: String, // Only for doctors
