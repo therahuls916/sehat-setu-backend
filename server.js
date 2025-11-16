@@ -14,7 +14,7 @@ const pharmacyRoutes = require('./routes/pharmacyRoutes');
 const userRoutes = require('./routes/userRoutes');
 
 // --- Error Handler Import ---
-const { errorHandler } = require('./middleware/errorHandler'); // <-- 1. IMPORT THE ERROR HANDLER
+const { errorHandler } = require('./middleware/errorHandler');
 
 // Load environment variables
 dotenv.config();
@@ -31,8 +31,23 @@ connectDB();
 const app = express();
 
 // --- CORS MIDDLEWARE CONFIGURATION ---
+// ✅ THE FIX IS HERE: We create a list of allowed origins and check against it.
+const allowedOrigins = [
+  'http://localhost:3000',                 // For your local frontend development
+  'https://sehat-setu-frontend.vercel.app' // For your live deployed Vercel frontend
+];
+
 const corsOptions = {
-  origin: 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
   optionsSuccessStatus: 204
@@ -55,8 +70,7 @@ app.get('/', (req, res) => {
 });
 
 // --- GLOBAL ERROR HANDLER ---
-// This MUST be the last piece of middleware that app.use() calls.
-app.use(errorHandler); // <-- 2. APPLY THE ERROR HANDLER
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
