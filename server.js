@@ -33,7 +33,7 @@ const app = express();
 // --- CORS MIDDLEWARE CONFIGURATION ---
 // ✅ THE FIX IS HERE: We create a list of allowed origins and check against it.
 const allowedOrigins = [
-  'http://localhost:3000',                 // For your local frontend development
+ // 'http://localhost:3000',                 // For your local frontend development
   'https://sehat-setu-frontend.vercel.app' // For your live deployed Vercel frontend
 ];
 
