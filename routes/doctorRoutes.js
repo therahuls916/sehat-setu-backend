@@ -10,7 +10,8 @@ const {
   updateAppointmentStatus,
   createPrescription,
   getDashboardStats,
-  updateDoctorStatus, // <-- 1. Import the new function
+  updateDoctorStatus,
+  getPatientHistory,
 } = require('../controllers/doctorController');
 
 const { protectFirebase } = require('../middleware/firebaseAuthMiddleware');
@@ -36,5 +37,6 @@ router.route('/prescriptions').post(protectFirebase, createPrescription);
 
 // --- Stats Route ---
 router.route('/stats').get(protectFirebase, getDashboardStats);
+router.route('/history').get(protectFirebase, getPatientHistory);
 
 module.exports = router;

@@ -1,7 +1,93 @@
-// Updated: backend/controllers/doctorController.js
+// backend/controllers/doctorController.js
 const Appointment = require('../models/appointmentModel');
 const Prescription = require('../models/prescriptionModel');
 const User = require('../models/userModel');
+
+// --- OVERHAULED FUNCTION ---
+
+/**
+ * @desc    Update the profile of the logged-in doctor with rich details
+ * @route   PUT /api/doctor/profile
+ * @access  Private
+ */
+const updateDoctorProfile = async (req, res, next) => {
+  try {
+    const doctor = await User.findById(req.user._id);
+
+    if (doctor) {
+      // Basic Info
+      doctor.name = req.body.name || doctor.name;
+      doctor.specialization = req.body.specialization || doctor.specialization;
+      doctor.profilePictureUrl = req.body.profilePictureUrl || doctor.profilePictureUrl;
+      doctor.phone = req.body.phone || doctor.phone;
+      
+      // Detailed Profile Info from the new UI designs
+      doctor.about = req.body.about || doctor.about;
+      
+      // Use 'if' checks for objects and arrays to allow them to be updated or cleared
+      if (req.body.services) {
+        doctor.services = req.body.services;
+      }
+      if (req.body.timings) {
+        doctor.timings = req.body.timings;
+      }
+      if (req.body.consultationFee) {
+        doctor.consultationFee = req.body.consultationFee;
+      }
+      if (req.body.linkedPharmacies) {
+        doctor.linkedPharmacies = req.body.linkedPharmacies;
+      }
+
+      // Handle location data specifically
+      if (req.body.latitude && req.body.longitude) {
+        doctor.location = {
+          type: 'Point',
+          coordinates: [req.body.longitude, req.body.latitude],
+        };
+      }
+
+      const updatedDoctor = await doctor.save();
+      res.status(200).json(updatedDoctor);
+    } else {
+      res.status(404).json({ message: 'Doctor not found' });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get history of all completed appointments
+ * @route   GET /api/doctor/history
+ * @access  Private
+ */
+const getPatientHistory = async (req, res, next) => {
+  try {
+    const completedAppointments = await Appointment.find({
+      doctorId: req.user._id,
+      status: 'completed',
+    })
+    .populate('patientId', 'name')
+    .sort({ appointmentDate: -1 })
+    .lean(); // Use .lean() for better performance
+
+    // For each appointment, find the corresponding prescription ID
+    const history = await Promise.all(completedAppointments.map(async (appt) => {
+        const prescription = await Prescription.findOne({ appointmentId: appt._id }).select('_id').lean();
+        return {
+            ...appt,
+            prescriptionId: prescription?._id || null,
+        };
+    }));
+
+    res.status(200).json(history);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// --- UNCHANGED FUNCTIONS (No modifications needed for these) ---
 
 const getAcceptedPatients = async (req, res, next) => {
   try {
@@ -24,30 +110,12 @@ const getAcceptedPatients = async (req, res, next) => {
 
 const getDoctorProfile = async (req, res, next) => {
   try {
+    // This will now automatically return the full profile with all new fields
     const doctorProfile = req.user;
     if (!doctorProfile) {
         return res.status(404).json({ message: 'Doctor profile not found.' });
     }
     res.status(200).json(doctorProfile);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const updateDoctorProfile = async (req, res, next) => {
-  try {
-    const doctor = await User.findById(req.user._id);
-    if (doctor) {
-      doctor.name = req.body.name || doctor.name;
-      doctor.specialization = req.body.specialization || doctor.specialization;
-      if (req.body.linkedPharmacies) {
-        doctor.linkedPharmacies = req.body.linkedPharmacies;
-      }
-      const updatedDoctor = await doctor.save();
-      res.status(200).json(updatedDoctor);
-    } else {
-      res.status(404).json({ message: 'Doctor not found' });
-    }
   } catch (error) {
     next(error);
   }
@@ -96,12 +164,7 @@ const createPrescription = async (req, res, next) => {
         return res.status(401).json({ message: 'Not authorized to create a prescription for this appointment.' });
     }
     const prescription = await Prescription.create({
-      appointmentId,
-      patientId,
-      pharmacyId,
-      medicines,
-      notes,
-      doctorId: req.user._id,
+      appointmentId, patientId, pharmacyId, medicines, notes, doctorId: req.user._id,
     });
     
     appointment.status = 'completed';
@@ -136,22 +199,12 @@ const getDashboardStats = async (req, res, next) => {
   }
 };
 
-// --- NEW FUNCTION FOR PATIENT APP ---
-/**
- * @desc    Update doctor's online/offline status
- * @route   PUT /api/doctor/status
- * @access  Private
- */
 const updateDoctorStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-
-    // Validate the incoming status
     if (!['online', 'offline'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status provided.' });
     }
-
-    // Find the logged-in doctor and update their status
     const doctor = await User.findById(req.user._id);
     if (doctor) {
       doctor.status = status;
@@ -165,14 +218,15 @@ const updateDoctorStatus = async (req, res, next) => {
   }
 };
 
-
+// --- EXPORT ALL FUNCTIONS ---
 module.exports = {
   getAcceptedPatients,
   getDoctorProfile,
-  updateDoctorProfile,
+  updateDoctorProfile, // The only function that was changed
   getDoctorAppointments,
   updateAppointmentStatus,
   createPrescription,
   getDashboardStats,
-  updateDoctorStatus, // <-- Export the new function
+  updateDoctorStatus,
+  getPatientHistory,
 };

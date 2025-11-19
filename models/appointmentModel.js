@@ -16,6 +16,11 @@ const appointmentSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    // --- NEW FIELD ---
+    appointmentTime: { // To store the specific time slot, e.g., "10:30 AM"
+      type: String,
+      required: true,
+    },
     reason: {
       type: String,
       required: true,
@@ -23,7 +28,8 @@ const appointmentSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ['pending', 'accepted', 'rejected', 'completed'],
+      // --- ENHANCED ENUM ---
+      enum: ['pending', 'accepted', 'rejected', 'completed', 'canceled'], // Added 'canceled'
       default: 'pending',
     },
   },
