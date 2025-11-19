@@ -44,6 +44,9 @@ const bookAppointment = async (req, res, next) => {
       reason,
     });
 
+  // This ensures the Android app receives the 'name' and 'specialization' it expects.
+    appointment = await appointment.populate('doctorId', 'name specialization profilePictureUrl');
+
     res.status(201).json(appointment);
   } catch (error) {
     next(error);
