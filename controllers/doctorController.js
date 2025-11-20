@@ -3,6 +3,7 @@ const Appointment = require('../models/appointmentModel');
 const Prescription = require('../models/prescriptionModel');
 const User = require('../models/userModel');
 const { sendNotificationToUser } = require('../utils/notificationSender');
+const Stock = require('../models/stockModel'); 
 
 // --- OVERHAULED FUNCTION ---
 
@@ -236,8 +237,25 @@ const updateDoctorStatus = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Get stock of a specific pharmacy for autocomplete
+ * @route   GET /api/doctor/pharmacy/:id/stock
+ * @access  Private
+ */
+const getPharmacyStockForDoctor = async (req, res, next) => {
+  try {
+    const pharmacyId = req.params.id;
+    // Fetch medicine names and current quantity
+    const stock = await Stock.find({ pharmacyId }).select('medicineName quantity');
+    res.status(200).json(stock);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // --- EXPORT ALL FUNCTIONS ---
 module.exports = {
+  getPharmacyStockForDoctor,
   getAcceptedPatients,
   getDoctorProfile,
   updateDoctorProfile, // The only function that was changed

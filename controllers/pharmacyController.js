@@ -24,7 +24,6 @@ const updatePrescriptionStatus = async (req, res, next) => {
         const { status, pharmacyNotes } = req.body;
         const prescriptionId = req.params.id;
 
-        // Security Check: Ensure the logged-in pharmacy owns this prescription
         const pharmacy = await Pharmacy.findOne({ ownerId: req.user._id });
         const prescription = await Prescription.findById(prescriptionId);
 
@@ -32,23 +31,51 @@ const updatePrescriptionStatus = async (req, res, next) => {
             return res.status(404).json({ message: 'Prescription not found.' });
         }
         if (prescription.pharmacyId.toString() !== pharmacy._id.toString()) {
-            return res.status(401).json({ message: 'Not authorized to update this prescription.' });
+            return res.status(401).json({ message: 'Not authorized.' });
         }
 
-        // Update the fields
+        // --- LOGIC FOR STOCK DEDUCTION ---
+        // Check if we are changing status TO 'dispensed' FROM something else
+        if (status === 'dispensed' && prescription.status !== 'dispensed') {
+            
+            // Loop through each medicine in the prescription
+            for (const med of prescription.medicines) {
+                // Find the stock item (Case insensitive search)
+                const stockItem = await Stock.findOne({ 
+                    pharmacyId: pharmacy._id, 
+                    medicineName: { $regex: new RegExp(`^${med.name}$`, 'i') } 
+                });
+
+                if (stockItem) {
+                    // Deduct quantity, ensuring it doesn't go below 0
+                    stockItem.quantity = Math.max(0, stockItem.quantity - (med.quantity || 1));
+                    await stockItem.save();
+                }
+            }
+        }
+        // ---------------------------------
+
         prescription.status = status;
         if (pharmacyNotes) {
             prescription.pharmacyNotes = pharmacyNotes;
         }
 
         const updatedPrescription = await prescription.save();
+
+        // ... (Keep your existing notification logic here) ...
+        const { sendNotificationToUser } = require('../utils/notificationSender');
+        if (status === 'ready_for_pickup') {
+             await sendNotificationToUser(prescription.patientId, 'Medicines Ready 💊', `Your prescription from ${pharmacy.name} is ready for pickup.`);
+        } else if (status === 'dispensed') {
+            await sendNotificationToUser(prescription.patientId, 'Medicines Dispensed ✅', `Your medical prescription has been successfully dispensed.`);
+        }
+
         res.status(200).json(updatedPrescription);
 
     } catch (error) {
         next(error);
     }
 };
-
 
 // --- NEW FUNCTION TO UPDATE A PROFILE ---
 const updatePharmacyProfile = async (req, res, next) => {

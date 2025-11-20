@@ -39,4 +39,6 @@ router.route('/prescriptions').post(protectFirebase, createPrescription);
 router.route('/stats').get(protectFirebase, getDashboardStats);
 router.route('/history').get(protectFirebase, getPatientHistory);
 
+router.route('/pharmacy/:id/stock').get(protectFirebase, getPharmacyStockForDoctor);
+
 module.exports = router;
