@@ -255,8 +255,8 @@ const downloadPrescription = async (req, res, next) => {
   try {
     const prescriptionId = req.params.id;
     const prescription = await Prescription.findById(prescriptionId)
-      .populate('patientId', 'name dateOfBirth gender') // Use dateOfBirth instead of age
-      .populate('doctorId', 'name specialization')
+      .populate('patientId', 'name dateOfBirth gender') 
+      .populate('doctorId', 'name specialization address phone') // Added address/phone for letterhead
       .populate('pharmacyId', 'name address');
 
     if (!prescription || prescription.patientId._id.toString() !== req.user._id.toString()) {
@@ -267,41 +267,108 @@ const downloadPrescription = async (req, res, next) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=prescription-${prescription._id}.pdf`);
     doc.pipe(res);
+
+    // --- 1. DISPENSED WATERMARK LOGIC ---
+    if (prescription.status === 'dispensed') {
+        doc.save(); // Save current state
+        doc.rotate(-45, { origin: [300, 300] }); // Rotate canvas
+        doc.fontSize(80).font('Helvetica-Bold').fillColor('#FF0000').opacity(0.15)
+           .text('DISPENSED', 50, 300, { align: 'center', width: 500 });
+        doc.restore(); // Restore to normal rotation/color
+        doc.fillColor('black').opacity(1); // Reset text color
+    }
+
+    // --- 2. HOSPITAL / CLINIC LETTERHEAD ---
+    // Since we don't have a specific 'clinicName' field, we use the Doctor's Name as the "Brand"
+    doc.fontSize(20).font('Helvetica-Bold').text(`Dr. ${prescription.doctorId.name}`, { align: 'center' });
+    doc.fontSize(10).font('Helvetica').text(prescription.doctorId.specialization.toUpperCase(), { align: 'center' });
     
-    doc.fontSize(20).font('Helvetica-Bold').text('Medical Prescription', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(12).font('Helvetica-Bold').text('Patient Information');
-    doc.font('Helvetica').text(`Name: ${prescription.patientId.name}`);
-    // Calculate age from dateOfBirth for the PDF
+    // Optional: If doctor has an address, show it as clinic address
+    if (prescription.doctorId.address) {
+        doc.fontSize(9).text(prescription.doctorId.address, { align: 'center' });
+    }
+    
+    doc.moveDown(0.5);
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke(); // Horizontal Line
+    doc.moveDown(1);
+
+    // --- TITLE ---
+    doc.fontSize(16).font('Helvetica-Bold').text('MEDICAL PRESCRIPTION', { align: 'center', characterSpacing: 2 });
+    doc.moveDown(1.5);
+
+    // --- PATIENT DETAILS (Grid Layout) ---
+    const startY = doc.y;
+    
+    doc.fontSize(10).font('Helvetica-Bold').text('Patient Name:', 50, startY);
+    doc.font('Helvetica').text(prescription.patientId.name, 130, startY);
+    
+    doc.font('Helvetica-Bold').text('Date:', 350, startY);
+    doc.font('Helvetica').text(new Date(prescription.createdAt).toLocaleDateString(), 400, startY);
+
     const age = prescription.patientId.dateOfBirth ? 
         new Date().getFullYear() - new Date(prescription.patientId.dateOfBirth).getFullYear() : 'N/A';
-    doc.text(`Age: ${age}, Gender: ${prescription.patientId.gender || 'N/A'}`);
-    doc.moveDown();
-    doc.fontSize(12).font('Helvetica-Bold').text('Prescribed By');
-    doc.font('Helvetica').text(`Dr. ${prescription.doctorId.name} (${prescription.doctorId.specialization})`);
-    doc.moveDown();
-    doc.fontSize(12).font('Helvetica-Bold').text('To Be Dispensed By');
-    doc.font('Helvetica').text(`${prescription.pharmacyId.name}`);
-    doc.text(`${prescription.pharmacyId.address}`);
+    
+    doc.font('Helvetica-Bold').text('Age / Gender:', 50, startY + 15);
+    doc.font('Helvetica').text(`${age} Y / ${prescription.patientId.gender || 'N/A'}`, 130, startY + 15);
+    
+    doc.font('Helvetica-Bold').text('Prescription ID:', 350, startY + 15);
+    doc.font('Helvetica').text(prescription._id.toString().substring(0, 8).toUpperCase(), 400, startY + 15);
+
     doc.moveDown(2);
-    doc.fontSize(14).font('Helvetica-Bold').text('Medicines');
-    doc.font('Helvetica');
+
+    // --- MEDICINES TABLE ---
+    doc.fontSize(12).font('Helvetica-Bold').text('Rx (Medicines)', 50, doc.y);
+    doc.moveDown(0.5);
+
+    // Table Header
     const tableTop = doc.y;
     const itemX = 50, dosageX = 250, durationX = 450;
-    doc.font('Helvetica-Bold');
-    doc.text('Medicine', itemX, tableTop);
+    
+    doc.rect(itemX, tableTop - 5, 500, 20).fillColor('#f0f0f0').fill(); // Light gray header background
+    doc.fillColor('black');
+    
+    doc.fontSize(10).font('Helvetica-Bold');
+    doc.text('Medicine Name', itemX + 5, tableTop);
     doc.text('Dosage', dosageX, tableTop);
     doc.text('Duration', durationX, tableTop);
-    doc.moveTo(itemX - 10, doc.y).lineTo(550, doc.y).stroke();
+    doc.moveDown(1.5);
+
+    // Table Rows
     doc.font('Helvetica');
-    doc.moveDown();
-    prescription.medicines.forEach(med => {
+    prescription.medicines.forEach((med, i) => {
         const y = doc.y;
-        doc.text(med.name, itemX, y);
+        
+        // Zebra striping for readability
+        if (i % 2 !== 0) {
+             doc.rect(itemX, y - 2, 500, 15).fillColor('#f9f9f9').fill();
+             doc.fillColor('black');
+        }
+
+        doc.text(med.name, itemX + 5, y);
         doc.text(med.dosage, dosageX, y);
         doc.text(med.duration, durationX, y);
-        doc.moveDown();
+        doc.moveDown(1);
     });
+
+    doc.moveDown(2);
+
+    // --- NOTES ---
+    if (prescription.notes) {
+        doc.fontSize(10).font('Helvetica-Bold').text('Doctor\'s Notes:');
+        doc.font('Helvetica').text(prescription.notes);
+        doc.moveDown();
+    }
+
+    // --- DISPENSARY INFO ---
+    doc.moveDown();
+    doc.fontSize(10).font('Helvetica-Bold').text('Dispensing Pharmacy:');
+    doc.font('Helvetica').text(`${prescription.pharmacyId.name}`);
+    if(prescription.pharmacyId.address) doc.text(prescription.pharmacyId.address);
+
+    // --- FOOTER ---
+    const bottom = doc.page.height - 50;
+    doc.fontSize(8).text('Generated by SehatSetu Digital Health Platform', 50, bottom, { align: 'center', color: 'grey' });
+
     doc.end();
   } catch (error) {
     next(error);
