@@ -12,6 +12,7 @@ const {
   getDashboardStats,
   updateDoctorStatus,
   getPatientHistory,
+  getPharmacyStockForDoctor, // <--- THIS WAS MISSING
 } = require('../controllers/doctorController');
 
 const { protectFirebase } = require('../middleware/firebaseAuthMiddleware');
@@ -23,7 +24,7 @@ router
   .put(protectFirebase, updateDoctorProfile);
 
 // --- New Route for Doctor Status (for Patient App) ---
-router.route('/status').put(protectFirebase, updateDoctorStatus); // <-- 2. Add the new route
+router.route('/status').put(protectFirebase, updateDoctorStatus);
 
 // --- Route to get patients with accepted appointments ---
 router.route('/patients').get(protectFirebase, getAcceptedPatients);
@@ -39,6 +40,7 @@ router.route('/prescriptions').post(protectFirebase, createPrescription);
 router.route('/stats').get(protectFirebase, getDashboardStats);
 router.route('/history').get(protectFirebase, getPatientHistory);
 
+// --- Pharmacy Stock Route ---
 router.route('/pharmacy/:id/stock').get(protectFirebase, getPharmacyStockForDoctor);
 
 module.exports = router;
